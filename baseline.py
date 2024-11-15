@@ -18,19 +18,16 @@ def load_data():
         validation_split=0.2,
         subset="both",
         seed=123,
-        label_mode='categorical',
+        label_mode='int',
         color_mode='grayscale',
         image_size=(48, 48),
-        batch_size=50)
+        batch_size=25)
     
     AUTOTUNE = tf.data.AUTOTUNE
     train_ds = train_ds.cache().prefetch(buffer_size=AUTOTUNE)
     val_ds = val_ds.cache().prefetch(buffer_size=AUTOTUNE)
         
     return train_ds, val_ds
-
-def sigmoid(x):
-    return 1. / (1. + np.exp(-x))
 
 
 """
@@ -47,10 +44,13 @@ model = Sequential(
     [
         tf.keras.Input(shape=(48, 48, 1)),
         tf.keras.layers.Flatten(),
-        Dense(50, activation='relu'),
+        Dense(2500, activation='relu'),
+        Dense(2500, activation='relu'),
+        Dense(2000, activation='relu'),
+        Dense(1500, activation='relu'),
+        Dense(500, activation='relu'),
         Dense(150, activation='relu'),
-        Dense(150, activation='relu'),
-        Dense(7, activation='softmax')
+        Dense(7, activation='linear')
     ], name = "Baseline_model"
 )
 
@@ -58,7 +58,7 @@ print(model.summary())
 
 
 model.compile(
-    loss=tf.keras.losses.CategoricalCrossentropy(),
+    loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
     optimizer=tf.keras.optimizers.Adam(1e-3),
     metrics=['accuracy']
 )
