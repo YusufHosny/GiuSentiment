@@ -2,8 +2,9 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense
+from tensorflow.keras.metrics import F1Score, Precision, Recall
 import matplotlib.pyplot as plt
-from PIL import Image
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 import os
 
 import logging
@@ -18,7 +19,7 @@ def load_data():
         validation_split=0.2,
         subset="both",
         seed=123,
-        label_mode='int',
+        label_mode='categorical',
         color_mode='grayscale',
         image_size=(48, 48),
         batch_size=25)
@@ -26,18 +27,27 @@ def load_data():
     AUTOTUNE = tf.data.AUTOTUNE
     train_ds = train_ds.cache().prefetch(buffer_size=AUTOTUNE)
     val_ds = val_ds.cache().prefetch(buffer_size=AUTOTUNE)
-        
-    return train_ds, val_ds
 
+    startpath = os.path.join('dataset', 'test')
+    test_ds = tf.keras.utils.image_dataset_from_directory(
+        startpath,
+        seed=123,
+        label_mode='categorical',
+        color_mode='grayscale',
+        image_size=(48, 48),
+        batch_size=25)
+        
+    return train_ds, val_ds, test_ds
+
+
+# load dataset
+train_ds, val_ds, test_ds = load_data()
 
 """
 Baseline code from "Neural Networks for Multi-Class Classification
 
 Starts Here
 """
-
-# load dataset
-train_ds, val_ds = load_data()
 
 # Sequential model
 model = Sequential(
@@ -58,9 +68,9 @@ print(model.summary())
 
 
 model.compile(
-    loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+    loss=tf.keras.losses.CategoricalCrossentropy(from_logits=True),
     optimizer=tf.keras.optimizers.Adam(1e-3),
-    metrics=['accuracy']
+    metrics=['accuracy', Precision(), Recall(), F1Score()]
 )
 
 model.fit(
@@ -74,7 +84,15 @@ Baseline code from "Neural Networks for Multi-Class Classification
 Ends Here
 """
 
-# inference on 1 batch
-for X, y in train_ds.take(1):
-    pred = model.predict(X)
-    print(pred, y)
+
+# confusion matrix
+X_test = np.array([x for xbatch, _ in test_ds for x in xbatch])
+y_test = np.array([y for _, ybatch in test_ds for y in ybatch])
+
+y_test_pred = model.predict(X_test)
+
+cm = confusion_matrix(y_true=np.argmax(y_test, axis=1), y_pred=np.argmax(y_test_pred, axis=1))
+cmd = ConfusionMatrixDisplay(cm, display_labels=['Angry', 'Disgusted', 'Fear', 'Happy', 'Neutral', 'Sad', 'Surprised'])
+
+cmd.plot()
+plt.show()
